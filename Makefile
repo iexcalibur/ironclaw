@@ -4,11 +4,12 @@ export PATH := $(HOME)/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/opt/homebrew
 CARGO ?= $(shell command -v cargo 2>/dev/null || echo "$(HOME)/.cargo/bin/cargo")
 WASM_TOOLS ?= $(shell command -v wasm-tools 2>/dev/null || echo "$(HOME)/.cargo/bin/wasm-tools")
 
-.PHONY: help check-env check-tools db-init build-telegram setup run status pairing pair-approve
+.PHONY: help check-env check-tools db-init build-telegram setup bootstrap run status pairing pair-approve
 
 help:
 	@echo "Targets:"
 	@echo "  make setup         Prepare DB + Telegram channel build artifacts"
+	@echo "  make bootstrap     One-time full local bootstrap (incl. worker image)"
 	@echo "  make run           One-click start (loads .env and runs IronClaw)"
 	@echo "  make status        Show IronClaw status using current .env"
 	@echo "  make pairing       List pending Telegram pairing requests"
@@ -35,6 +36,9 @@ build-telegram:
 
 setup: check-env check-tools db-init build-telegram
 	@echo "Setup complete. Run: make run"
+
+bootstrap: check-env
+	@./scripts/bootstrap-local.sh
 
 run: check-env check-tools build-telegram
 	@set -a; source .env; set +a; \
