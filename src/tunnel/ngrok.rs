@@ -46,7 +46,8 @@ impl Tunnel for NgrokTunnel {
             .args(&args)
             .env("NGROK_AUTHTOKEN", &self.auth_token)
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
+            // Avoid backpressure/deadlock from an unread stderr pipe.
+            .stderr(std::process::Stdio::null())
             .kill_on_drop(true)
             .spawn()?;
 
@@ -87,6 +88,14 @@ impl Tunnel for NgrokTunnel {
             child.kill().await.ok();
             bail!("ngrok did not produce a public URL within 15s. Is the auth token valid?");
         }
+
+        // Keep draining ngrok stdout after startup. Dropping the reader can
+        // cause ngrok to hit a broken pipe and exit, which kills webhook mode.
+        tokio::spawn(async move {
+            while let Ok(Some(line)) = reader.next_line().await {
+                tracing::debug!("ngrok: {line}");
+            }
+        });
 
         if let Ok(mut guard) = self.url.write() {
             *guard = Some(public_url.clone());
